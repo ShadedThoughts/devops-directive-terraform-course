@@ -2,9 +2,9 @@ terraform {
   # Assumes s3 bucket and dynamo DB table already set up
   # See /code/03-basics/aws-backend
   backend "s3" {
-    bucket         = "devops-directive-tf-state"
+    bucket         = "devops-uohaids-tf-state"
     key            = "03-basics/web-app/terraform.tfstate"
-    region         = "us-east-1"
+    region         = "eu-west-2"
     dynamodb_table = "terraform-state-locking"
     encrypt        = true
   }
@@ -18,13 +18,34 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region = "eu-west-2"
+}
+
+data "aws_vpc" "lab_vpc" {
+  id = var.vpc_id
+}
+
+data "aws_subnet" "lab_public_subnet" {
+  id = var.subnet_id
+}
+
+data "aws_subnet" "lab_public_subnet_2" {
+  id = var.subnet2_id
+}
+
+data "aws_security_group" "lab_sg_ec2" {
+  id = var.security_group_id
+}
+
+data "aws_security_group" "lab_sg_lb" {
+  id = var.aws_lb_sg_id
 }
 
 resource "aws_instance" "instance_1" {
-  ami             = "ami-011899242bb902164" # Ubuntu 20.04 LTS // us-east-1
+  ami             = "ami-0505148b3591e4c07" # Ubuntu 20.04 LTS // eu-west-2
   instance_type   = "t2.micro"
-  security_groups = [aws_security_group.instances.name]
+  subnet_id       = data.aws_subnet.lab_public_subnet.id
+  security_groups = [data.aws_security_group.lab_sg_ec2.id]
   user_data       = <<-EOF
               #!/bin/bash
               echo "Hello, World 1" > index.html
@@ -33,9 +54,10 @@ resource "aws_instance" "instance_1" {
 }
 
 resource "aws_instance" "instance_2" {
-  ami             = "ami-011899242bb902164" # Ubuntu 20.04 LTS // us-east-1
+  ami             = "ami-0505148b3591e4c07" # Ubuntu 20.04 LTS // eu-west-2
   instance_type   = "t2.micro"
-  security_groups = [aws_security_group.instances.name]
+  subnet_id       = data.aws_subnet.lab_public_subnet.id
+  security_groups = [data.aws_security_group.lab_sg_ec2.id]
   user_data       = <<-EOF
               #!/bin/bash
               echo "Hello, World 2" > index.html
@@ -44,7 +66,7 @@ resource "aws_instance" "instance_2" {
 }
 
 resource "aws_s3_bucket" "bucket" {
-  bucket_prefix = "devops-directive-web-app-data"
+  bucket_prefix = "devops-uohaids-web-app-data"
   force_destroy = true
 }
 
@@ -64,27 +86,19 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "bucket_crypto_con
   }
 }
 
-data "aws_vpc" "default_vpc" {
-  default = true
-}
+# resource "aws_security_group" "instances" {
+#   name = "instance-security-group"
+# }
 
-data "aws_subnet_ids" "default_subnet" {
-  vpc_id = data.aws_vpc.default_vpc.id
-}
+# resource "aws_security_group_rule" "allow_http_inbound" {
+#   type              = "ingress"
+#   security_group_id = aws_security_group.instances.id
 
-resource "aws_security_group" "instances" {
-  name = "instance-security-group"
-}
-
-resource "aws_security_group_rule" "allow_http_inbound" {
-  type              = "ingress"
-  security_group_id = aws_security_group.instances.id
-
-  from_port   = 8080
-  to_port     = 8080
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
-}
+#   from_port   = 8080
+#   to_port     = 8080
+#   protocol    = "tcp"
+#   cidr_blocks = ["0.0.0.0/0"]
+# }
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.load_balancer.arn
@@ -109,7 +123,7 @@ resource "aws_lb_target_group" "instances" {
   name     = "example-target-group"
   port     = 8080
   protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default_vpc.id
+  vpc_id   = data.aws_vpc.lab_vpc.id
 
   health_check {
     path                = "/"
@@ -151,48 +165,48 @@ resource "aws_lb_listener_rule" "instances" {
 }
 
 
-resource "aws_security_group" "alb" {
-  name = "alb-security-group"
-}
+# resource "aws_security_group" "alb" {
+#   name = "alb-security-group"
+# }
 
-resource "aws_security_group_rule" "allow_alb_http_inbound" {
-  type              = "ingress"
-  security_group_id = aws_security_group.alb.id
+# resource "aws_security_group_rule" "allow_alb_http_inbound" {
+#   type              = "ingress"
+#   security_group_id = aws_security_group.alb.id
 
-  from_port   = 80
-  to_port     = 80
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
+#   from_port   = 80
+#   to_port     = 80
+#   protocol    = "tcp"
+#   cidr_blocks = ["0.0.0.0/0"]
 
-}
+# }
 
-resource "aws_security_group_rule" "allow_alb_all_outbound" {
-  type              = "egress"
-  security_group_id = aws_security_group.alb.id
+# resource "aws_security_group_rule" "allow_alb_all_outbound" {
+#   type              = "egress"
+#   security_group_id = aws_security_group.alb.id
 
-  from_port   = 0
-  to_port     = 0
-  protocol    = "-1"
-  cidr_blocks = ["0.0.0.0/0"]
+#   from_port   = 0
+#   to_port     = 0
+#   protocol    = "-1"
+#   cidr_blocks = ["0.0.0.0/0"]
 
-}
+# }
 
 
 resource "aws_lb" "load_balancer" {
   name               = "web-app-lb"
   load_balancer_type = "application"
-  subnets            = data.aws_subnet_ids.default_subnet.ids
-  security_groups    = [aws_security_group.alb.id]
+  subnets            = [var.subnet_id, var.subnet2_id] # data.aws_subnet_ids.lab_vpc_subnet.ids | data.aws_subnet_ids.default_subnet.ids
+  security_groups    = [data.aws_security_group.lab_sg_lb.id]
 
 }
 
 resource "aws_route53_zone" "primary" {
-  name = "devopsdeployed.com"
+  name = "cloudcolonyng.click"
 }
 
 resource "aws_route53_record" "root" {
-  zone_id = aws_route53_zone.primary.zone_id
-  name    = "devopsdeployed.com"
+  zone_id = aws_route53_zone.primary.zone_id  # Z02667471HTPQD9VMUL5O
+  name    = "cloudcolonyng.click"
   type    = "A"
 
   alias {
