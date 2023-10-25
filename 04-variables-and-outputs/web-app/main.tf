@@ -2,9 +2,9 @@ terraform {
   # Assumes s3 bucket and dynamo DB table already set up
   # See /code/03-basics/aws-backend
   backend "s3" {
-    bucket         = "devops-directive-tf-state"
+    bucket         = "devops-uohaids-tf-state"
     key            = "04-variables-and-outputs/web-app/terraform.tfstate"
-    region         = "us-east-1"
+    region         = "eu-west-2"
     dynamodb_table = "terraform-state-locking"
     encrypt        = true
   }
@@ -25,7 +25,8 @@ provider "aws" {
 resource "aws_instance" "instance_1" {
   ami             = var.ami
   instance_type   = var.instance_type
-  security_groups = [aws_security_group.instances.name]
+  subnet_id       = data.aws_subnet.lab_public_subnet.id
+  security_groups = [data.aws_security_group.lab_sg_ec2.id]
   user_data       = <<-EOF
               #!/bin/bash
               echo "Hello, World 1" > index.html
@@ -36,7 +37,8 @@ resource "aws_instance" "instance_1" {
 resource "aws_instance" "instance_2" {
   ami             = var.ami
   instance_type   = var.instance_type
-  security_groups = [aws_security_group.instances.name]
+  subnet_id       = data.aws_subnet.lab_public_subnet.id
+  security_groups = [data.aws_security_group.lab_sg_ec2.id]
   user_data       = <<-EOF
               #!/bin/bash
               echo "Hello, World 2" > index.html
@@ -65,27 +67,27 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "bucket_crypto_con
   }
 }
 
-data "aws_vpc" "default_vpc" {
-  default = true
-}
+# data "aws_vpc" "default_vpc" {
+#   default = true
+# }
 
-data "aws_subnet_ids" "default_subnet" {
-  vpc_id = data.aws_vpc.default_vpc.id
-}
+# data "aws_subnet_ids" "default_subnet" {
+#   vpc_id = data.aws_vpc.default_vpc.id
+# }
 
-resource "aws_security_group" "instances" {
-  name = "instance-security-group"
-}
+# resource "aws_security_group" "instances" {
+#   name = "instance-security-group"
+# }
 
-resource "aws_security_group_rule" "allow_http_inbound" {
-  type              = "ingress"
-  security_group_id = aws_security_group.instances.id
+# resource "aws_security_group_rule" "allow_http_inbound" {
+#   type              = "ingress"
+#   security_group_id = aws_security_group.instances.id
 
-  from_port   = 8080
-  to_port     = 8080
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
-}
+#   from_port   = 8080
+#   to_port     = 8080
+#   protocol    = "tcp"
+#   cidr_blocks = ["0.0.0.0/0"]
+# }
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.load_balancer.arn
@@ -110,7 +112,7 @@ resource "aws_lb_target_group" "instances" {
   name     = "example-target-group"
   port     = 8080
   protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default_vpc.id
+  vpc_id   = data.aws_vpc.lab_vpc.id
 
   health_check {
     path                = "/"
@@ -152,38 +154,38 @@ resource "aws_lb_listener_rule" "instances" {
 }
 
 
-resource "aws_security_group" "alb" {
-  name = "alb-security-group"
-}
+# resource "aws_security_group" "alb" {
+#   name = "alb-security-group"
+# }
 
-resource "aws_security_group_rule" "allow_alb_http_inbound" {
-  type              = "ingress"
-  security_group_id = aws_security_group.alb.id
+# resource "aws_security_group_rule" "allow_alb_http_inbound" {
+#   type              = "ingress"
+#   security_group_id = aws_security_group.alb.id
 
-  from_port   = 80
-  to_port     = 80
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
+#   from_port   = 80
+#   to_port     = 80
+#   protocol    = "tcp"
+#   cidr_blocks = ["0.0.0.0/0"]
 
-}
+# }
 
-resource "aws_security_group_rule" "allow_alb_all_outbound" {
-  type              = "egress"
-  security_group_id = aws_security_group.alb.id
+# resource "aws_security_group_rule" "allow_alb_all_outbound" {
+#   type              = "egress"
+#   security_group_id = aws_security_group.alb.id
 
-  from_port   = 0
-  to_port     = 0
-  protocol    = "-1"
-  cidr_blocks = ["0.0.0.0/0"]
+#   from_port   = 0
+#   to_port     = 0
+#   protocol    = "-1"
+#   cidr_blocks = ["0.0.0.0/0"]
 
-}
+# }
 
 
 resource "aws_lb" "load_balancer" {
   name               = "web-app-lb"
   load_balancer_type = "application"
-  subnets            = data.aws_subnet_ids.default_subnet.ids
-  security_groups    = [aws_security_group.alb.id]
+  subnets            = [var.subnet_id, var.subnet2_id]
+  security_groups    = [data.aws_security_group.lab_sg_lb.id]
 
 }
 

@@ -1,5 +1,5 @@
-bucket_prefix = "devops-directive-web-app-data"
-domain        = "devopsdeployed.com"
+bucket_prefix = "devops-uohdaim-web-app-data"
+domain        = "cloudcolonyng.click"
 db_name       = "mydb"
 db_user       = "foo"
 # db_pass = "foobarbaz"
