@@ -1,7 +1,8 @@
 resource "aws_instance" "instance_1" {
   ami             = var.ami
   instance_type   = var.instance_type
-  security_groups = [aws_security_group.instances.name]
+  subnet_id       = data.aws_subnet.lab_public_subnet.id
+  security_groups = [data.aws_security_group.lab_sg_ec2.id]
   user_data       = <<-EOF
               #!/bin/bash
               echo "Hello, World 1" > index.html
@@ -12,7 +13,8 @@ resource "aws_instance" "instance_1" {
 resource "aws_instance" "instance_2" {
   ami             = var.ami
   instance_type   = var.instance_type
-  security_groups = [aws_security_group.instances.name]
+  subnet_id       = data.aws_subnet.lab_public_subnet.id
+  security_groups = [data.aws_security_group.lab_sg_ec2.id]
   user_data       = <<-EOF
               #!/bin/bash
               echo "Hello, World 2" > index.html

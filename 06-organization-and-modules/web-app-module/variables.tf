@@ -3,7 +3,7 @@
 variable "region" {
   description = "Default region for provider"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-2"
 }
 
 variable "app_name" {
@@ -23,7 +23,7 @@ variable "environment_name" {
 variable "ami" {
   description = "Amazon machine image to use for ec2 instance"
   type        = string
-  default     = "ami-011899242bb902164" # Ubuntu 20.04 LTS // us-east-1
+  default     = "ami-0505148b3591e4c07" # Ubuntu 20.04 LTS // us-east-1
 }
 
 variable "instance_type" {
@@ -70,4 +70,33 @@ variable "db_pass" {
   sensitive   = true
 }
 
+## VPC - SUBNETS - SECURITY GROUPS 
+variable "vpc_id" {
+  description = "Value of the VPC Identifier"
+  type        = string
+  default     = "vpc-0341b7d5c859d70f9"
+}
 
+variable "subnet_id" {
+  description = "Value of the Public Subnet Identifier"
+  type        = string
+  default     = "subnet-007fca2f16931423e"
+}
+
+variable "security_group_id" {
+  description = "Lab VPC security group for EC2"
+  type        = string
+  default     = "sg-0692d3fea06876203"
+}
+
+variable "aws_lb_sg_id" {
+  description = "Security group for AWS load balancer"
+  type        = string
+  default     = "sg-04a8f79ad552f387b"
+}
+
+variable "subnet2_id" {
+  description = "ID for public subnet 2"
+  type        = string
+  default     = "subnet-0d55a6b04de17cd0c"
+}
